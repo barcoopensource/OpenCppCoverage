@@ -35,7 +35,10 @@ namespace FileFilter
 			std::wifstream ifs(unifiedDiffPath.wstring());
 
 			if (!ifs)
-				std::runtime_error("The file " + unifiedDiffPath.string() + " cannot be opened.");
+			{
+				std::runtime_error errorInfo = std::runtime_error("The file " + unifiedDiffPath.string() + " cannot be opened.");
+				LOG_DEBUG << errorInfo.what();
+			}
 
 			auto files = UnifiedDiffParser{}.Parse(ifs);
 			LOG_DEBUG << L"Unified diff: " << unifiedDiffPath;

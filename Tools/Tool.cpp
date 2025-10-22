@@ -18,7 +18,7 @@
 #include "Tool.hpp"
 
 #include <boost/optional/optional.hpp>
-#include <cvt/wstring>
+#include <locale>
 #include <codecvt>
 #include <filesystem>
 #include <system_error>

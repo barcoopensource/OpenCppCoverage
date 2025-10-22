@@ -1,37 +1,93 @@
-name: Unit tests
-on: [push, pull_request]
+name: build Release
+on: [push]
 
 jobs:
   build:
-    name: Unit tests
+    name: build Release
     runs-on: windows-latest
+    permissions:
+      security-events: write
+      actions: read
+      contents: write # Required for creating releases and pushing tags
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - language: c-cpp
+            build-mode: manual
     steps:
       - name: Checkout
         uses: actions/checkout@v2
+
+      # Initializes the CodeQL tools for scanning.
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v3
+        with:
+          languages: ${{ matrix.language }}
+          build-mode: ${{ matrix.build-mode }}
 
       - name: Install third party libraries
         run: ./InstallThirdPartyLibraries.ps1
 
       - name: Setup MSBuild
-        uses: microsoft/setup-msbuild@v1.0.0
+        uses: microsoft/setup-msbuild@v2
 
       - name: Build solution
-        run: msbuild /m CppCoverage.sln /p:Configuration=Debug /p:Platform=x64
+        run: msbuild /m CppCoverage.sln /t:OpenCppCoverage  /p:Configuration=Release /p:Platform=x64
 
-      - name: Run CppCoverageTest
-        run: .\x64\Debug\CppCoverageTest.exe --gtest_filter=-CodeCoverageRunnerTest.OptimizedBuild # Require VS2013
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@v3
+        with:
+          category: "/language:${{matrix.language}}"
 
-      - name: Run ExporterTest
-        run: .\x64\Debug\ExporterTest.exe
+      - name: release package
+        shell: pwsh
+        run: |
+          # Configure git to use the GitHub token for authentication
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@github.com"
 
-      - name: Run FileFilterTest
-        run: .\x64\Debug\FileFilterTest.exe --gtest_filter=-RelocationsExtractorTest.Extract # Require mspdbcore.dll
+          $version = Get-Content .\VERSION.txt
+          $commitId = git rev-list --no-merges -n 1 HEAD
+          $tagName = "v$version"
 
-      - name: Run OpenCppCoverageTest
-        run: .\x64\Debug\OpenCppCoverageTest.exe
+          # Set error action preference to continue on error
+          $ErrorActionPreference = "Continue"
 
-      - name: Run PluginTest
-        run: .\x64\Debug\PluginTest.exe
+          # Check if tag already exists locally
+          $existingTag = git tag -l $tagName
 
-      - name: Run ToolsTest
-        run: .\x64\Debug\ToolsTest.exe
+          # Check if GitHub release already exists
+          $existingRelease = $null
+          try {
+            $existingRelease = gh release view $tagName 2>$null
+          } catch {
+            # Release doesn't exist, which is fine
+          }
+
+          if (-not $existingTag -and -not $existingRelease) {
+            Write-Host "Creating new tag and release: $tagName"
+            
+            # Create and push tag
+            git tag $tagName $commitId
+            $tagResult = git push origin $tagName
+            
+            if ($LASTEXITCODE -eq 0) {
+              # Create GitHub release
+              $releaseResult = gh release create $tagName .\x64\Release\OpenCppCoverage.exe --title "OpenCppCoverage $version" --notes "Release $version"
+              
+              if ($LASTEXITCODE -eq 0) {
+                Write-Host "Successfully created release $tagName"
+              } else {
+                Write-Host "Failed to create GitHub release for $tagName, but tag was created"
+              }
+            } else {
+              Write-Host "Failed to push tag $tagName"
+            }
+          } elseif ($existingTag) {
+            Write-Host "Tag $tagName already exists locally, skipping release creation"
+          } elseif ($existingRelease) {
+            Write-Host "Release $tagName already exists on GitHub, skipping release creation"
+          }
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

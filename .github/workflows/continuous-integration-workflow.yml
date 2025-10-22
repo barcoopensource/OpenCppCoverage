@@ -20,3 +20,24 @@ jobs:
 
       - name: show list under build path
         run: dir .\x64\Release
+
+      - name: release package
+        shell: pwsh
+        run: |
+          $version = Get-Content .\VERSION.txt
+          $commitId = git rev-list --no-merges -n 1 HEAD
+          $tagName = "v$version"
+
+          # Check if tag already exists
+          $existingTag = git tag -l $tagName
+          if (-not $existingTag) {
+            git tag $tagName $commitId
+            git push origin $tagName
+            
+            # Create GitHub release
+            gh release create $tagName .\x64\Release\OpenCppCoverage.exe --title "OpenCppCoverage $version" --notes "Release $version"
+          } else {
+            Write-Host "Tag $tagName already exists, skipping release creation"
+          }
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

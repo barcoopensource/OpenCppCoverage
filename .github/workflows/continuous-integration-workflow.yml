@@ -1,5 +1,5 @@
 name: build Release
-on: [push, pull_request]
+on: [push]
 
 jobs:
   build:
@@ -22,6 +22,7 @@ jobs:
         run: dir .\x64\Release
 
       - name: release package
+        if: github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/heads/release/')
         shell: pwsh
         run: |
           $version = Get-Content .\VERSION.txt

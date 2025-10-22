@@ -7,9 +7,22 @@ jobs:
     runs-on: windows-latest
     permissions:
       contents: write # Required for creating releases and pushing tags
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - language: c-cpp
+            build-mode: manual
     steps:
       - name: Checkout
         uses: actions/checkout@v2
+
+      # Initializes the CodeQL tools for scanning.
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v3
+        with:
+          languages: ${{ matrix.language }}
+          build-mode: ${{ matrix.build-mode }}
 
       - name: Install third party libraries
         run: ./InstallThirdPartyLibraries.ps1
@@ -20,8 +33,10 @@ jobs:
       - name: Build solution
         run: msbuild /m CppCoverage.sln /t:OpenCppCoverage  /p:Configuration=Release /p:Platform=x64
 
-      - name: show list under build path
-        run: dir .\x64\Release
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@v3
+        with:
+          category: "/language:${{matrix.language}}"
 
       - name: release package
         shell: pwsh

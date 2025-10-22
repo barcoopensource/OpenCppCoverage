@@ -51,16 +51,43 @@ jobs:
           $commitId = git rev-list --no-merges -n 1 HEAD
           $tagName = "v$version"
 
-          # Check if tag already exists
+          # Set error action preference to continue on error
+          $ErrorActionPreference = "Continue"
+
+          # Check if tag already exists locally
           $existingTag = git tag -l $tagName
-          if (-not $existingTag) {
-            git tag $tagName $commitId
-            git push origin $tagName
+
+          # Check if GitHub release already exists
+          $existingRelease = $null
+          try {
+            $existingRelease = gh release view $tagName 2>$null
+          } catch {
+            # Release doesn't exist, which is fine
+          }
+
+          if (-not $existingTag -and -not $existingRelease) {
+            Write-Host "Creating new tag and release: $tagName"
             
-            # Create GitHub release
-            gh release create $tagName .\x64\Release\OpenCppCoverage.exe --title "OpenCppCoverage $version" --notes "Release $version"
-          } else {
-            Write-Host "Tag $tagName already exists, skipping release creation"
+            # Create and push tag
+            git tag $tagName $commitId
+            $tagResult = git push origin $tagName
+            
+            if ($LASTEXITCODE -eq 0) {
+              # Create GitHub release
+              $releaseResult = gh release create $tagName .\x64\Release\OpenCppCoverage.exe --title "OpenCppCoverage $version" --notes "Release $version"
+              
+              if ($LASTEXITCODE -eq 0) {
+                Write-Host "Successfully created release $tagName"
+              } else {
+                Write-Host "Failed to create GitHub release for $tagName, but tag was created"
+              }
+            } else {
+              Write-Host "Failed to push tag $tagName"
+            }
+          } elseif ($existingTag) {
+            Write-Host "Tag $tagName already exists locally, skipping release creation"
+          } elseif ($existingRelease) {
+            Write-Host "Release $tagName already exists on GitHub, skipping release creation"
           }
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

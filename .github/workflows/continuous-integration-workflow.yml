@@ -5,6 +5,8 @@ jobs:
   build:
     name: build Release
     runs-on: windows-latest
+    permissions:
+      contents: write # Required for creating releases and pushing tags
     steps:
       - name: Checkout
         uses: actions/checkout@v2
@@ -24,6 +26,10 @@ jobs:
       - name: release package
         shell: pwsh
         run: |
+          # Configure git to use the GitHub token for authentication
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@github.com"
+
           $version = Get-Content .\VERSION.txt
           $commitId = git rev-list --no-merges -n 1 HEAD
           $tagName = "v$version"

@@ -40,6 +40,12 @@ jobs:
         with:
           category: "/language:${{matrix.language}}"
 
+      - name: create release package
+        run: ./CreateRelease.bat
+
+      - name: compress release package
+        run: Compress-Archive -Path .\NewRelease\x64\Binaries\* -DestinationPath .\OpenCppCoverage.zip
+
       - name: release package
         shell: pwsh
         run: |
@@ -74,7 +80,7 @@ jobs:
             
             if ($LASTEXITCODE -eq 0) {
               # Create GitHub release
-              $releaseResult = gh release create $tagName .\x64\Release\OpenCppCoverage.exe --title "OpenCppCoverage $version" --notes "Release $version"
+              $releaseResult = gh release create $tagName .\OpenCppCoverage.zip --title "OpenCppCoverage $version" --notes "Release $version"
               
               if ($LASTEXITCODE -eq 0) {
                 Write-Host "Successfully created release $tagName"

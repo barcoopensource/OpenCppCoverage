@@ -40,13 +40,8 @@ jobs:
         with:
           category: "/language:${{matrix.language}}"
 
-      - name: create release package
-        run: |
-          ./CreateRelease.bat
-          dir .\NewRelease\x64\Binaries
-
       - name: compress release package
-        run: Compress-Archive -Path .\NewRelease\x64\Binaries\* -DestinationPath .\OpenCppCoverage.zip
+        run: Compress-Archive -Path .\x64\Release\* -DestinationPath .\OpenCppCoverage.zip
 
       - name: release package
         shell: pwsh

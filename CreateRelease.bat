@@ -48,4 +48,3 @@ xcopy /y x64\Release\OpenCppCoverage.pdb NewRelease\x64\Pdb
 xcopy /y x64\Release\Exporter.pdb NewRelease\x64\Pdb
 xcopy /y x64\Release\CppCoverage.pdb NewRelease\x64\Pdb
 xcopy /y x64\Release\Tools.pdb NewRelease\x64\Pdb
-pause
